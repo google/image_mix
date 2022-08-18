@@ -1,1 +1,7 @@
-## README Template
+# ImageMix
+
+## Problem
+
+
+## Solution
+
