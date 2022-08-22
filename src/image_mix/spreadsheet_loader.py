@@ -22,10 +22,26 @@ sheet_loader = SpreadSheetLoader('https://docs.google.com/spreadsheets/d/1y',
 layouts = sheet_loader.get_layouts()
 """
 
-from google import auth as default_auth
+from typing import List
 
+from google import auth as default_auth
 from google.colab import auth as colab_auth
 import gspread
+
+from image_mix import text_layer as text_layer_lib
+
+_TEXT_LAYER_TAB = 'TEXT_LAYER'
+
+_TEXT_LAYER_ID_COLUMN = 0
+_FONT_SIZE_COLUMN = 1
+_COLOR_R_COLUMN = 2
+_COLOR_G_COLUMN = 3
+_COLOR_B_COLUMN = 4
+_POSITION_X_COLUMN = 5
+_POSITION_Y_COLUMN = 6
+_TEXT_CONTENT_COLUMN = 7
+
+_LAYER_ID_COLUMN_HEADER = 'layer_id'
 
 
 class SpreadSheetLoader:
@@ -82,3 +98,48 @@ class SpreadSheetLoader:
     colab_auth.authenticate_user()
     creds, _ = default_auth.default()
     return gspread.authorize(creds)
+
+  def get_text_layers(self) -> List[text_layer_lib.TextLayer]:
+    """Returns a list of TextLayer from the spreadsheet.
+
+    Returns:
+      A list of TextLayer objects made from the information found in the
+      spreadsheet TEXT_LAYER tab.
+
+    Raises:
+      gspread.WorksheetNotFound: if no tab TEXT_LAYER is present in the
+        spreadsheet.
+      ValueError: if a row contains incorrect information to create a TextLayer
+        object.
+    """
+    text_layer_worksheet = self._spreadsheet.worksheet(_TEXT_LAYER_TAB)
+    all_rows_text_layer = text_layer_worksheet.get_all_values()
+
+    number_of_rows = len(all_rows_text_layer)
+    if number_of_rows <= 1:
+      return []
+
+    text_layers = []
+    for index, row in enumerate(all_rows_text_layer):
+      if row[_TEXT_LAYER_ID_COLUMN] == _LAYER_ID_COLUMN_HEADER:
+        continue
+
+      try:
+        text_layer = text_layer_lib.TextLayer(
+            layer_id=row[_TEXT_LAYER_ID_COLUMN],
+            position_x=int(row[_POSITION_X_COLUMN]),
+            position_y=int(row[_POSITION_Y_COLUMN]),
+            font_size=int(row[_FONT_SIZE_COLUMN]),
+            font_file_path=self._default_font_file_path,
+            color_r=int(row[_COLOR_R_COLUMN]),
+            color_g=int(row[_COLOR_G_COLUMN]),
+            color_b=int(row[_COLOR_B_COLUMN]),
+            text_content=row[_TEXT_CONTENT_COLUMN])
+        text_layers.append(text_layer)
+
+      except ValueError as error:
+        raise ValueError(
+            (f'Fail to create text layer object from row {index+1} in the '
+             'TEXT_LAYER tab please double check this row\'s value')) from error
+
+    return text_layers

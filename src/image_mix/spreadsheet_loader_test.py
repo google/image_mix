@@ -20,8 +20,11 @@ from unittest import mock
 from google import auth as default_auth
 from google.colab import auth as colab_auth
 import gspread
+from gspread import exceptions as gspread_exceptions
 
 from image_mix import spreadsheet_loader
+from image_mix import text_layer
+
 from absl.testing import absltest
 
 
@@ -29,6 +32,58 @@ _SHEET_URL = 'https://docs.google.com/spreadsheets/d/1qgWhMMOfedeK2DMeLxqlr7xD1J
 _IMAGE_DIRECTORY_PATH = 'IMAGEMIX/images'
 
 _DEFAULT_FONT_FILE_PATH = 'fonts/dummy-font.ttf'
+_SHEET_HEADER_TEXT_LAYER = [
+    'layer_id', 'font_size', 'color_r', 'color_g', 'color_b', 'position_x',
+    'position_y', 'text_content'
+]
+
+_ROW_ONE_TEXT_LAYER = [
+    'text_layer1',  # layer_id
+    '94',  # font_size
+    '50',  # color_r
+    '60',  # color_g
+    '251',  # color_b
+    '252',  # position_x
+    '253',  # position_y
+    '東京で今最も売れているモノは？'  # text_content
+]
+
+_ROW_TWO_TEXT_LAYER = [
+    'buy_me_text',  # layer_id
+    '48',  # font_size
+    '255',  # color_r
+    '255',  # color_g
+    '255',  # color_b
+    '232',  # position_x
+    '158',  # position_y
+    'レディースファッションおすすめ'  # text_content
+]
+
+_TEXT_LAYER_WORKSHEET_VALUES = [_SHEET_HEADER_TEXT_LAYER,
+                                _ROW_ONE_TEXT_LAYER,
+                                _ROW_TWO_TEXT_LAYER]
+
+_TEXT_LAYER_1 = text_layer.TextLayer(
+    layer_id='text_layer1',
+    position_x=252,
+    position_y=253,
+    font_size=94,
+    font_file_path=_DEFAULT_FONT_FILE_PATH,
+    color_r=50,
+    color_g=60,
+    color_b=251,
+    text_content='東京で今最も売れているモノは？')
+
+_TEXT_LAYER_2 = text_layer.TextLayer(
+    layer_id='buy_me_text',
+    position_x=232,
+    position_y=158,
+    font_size=48,
+    font_file_path=_DEFAULT_FONT_FILE_PATH,
+    color_r=255,
+    color_g=255,
+    color_b=255,
+    text_content='レディースファッションおすすめ')
 
 
 class SpreadsheetLoaderTest(absltest.TestCase):
@@ -69,6 +124,87 @@ class SpreadsheetLoaderTest(absltest.TestCase):
     mock_colab_auth.assert_called_once()
     mock_google_auth.assert_called_once()
     mock_gspead.assert_called_once()
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_text_layers(self, mock_gspead, mock_colab_auth,
+                           mock_google_auth):
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = _TEXT_LAYER_WORKSHEET_VALUES
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+
+    actual_text_layers = sheet_loader.get_text_layers()
+
+    expected_text_layers = [_TEXT_LAYER_2, _TEXT_LAYER_1]
+    self.assertCountEqual(expected_text_layers, actual_text_layers)
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_text_layers_no_layers_info_return_empty_array(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
+        _SHEET_HEADER_TEXT_LAYER
+    ]
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+
+    actual_text_layers = sheet_loader.get_text_layers()
+
+    expected_text_layers = []
+    self.assertEqual(expected_text_layers, actual_text_layers)
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_text_layers_no_text_layer_tab_raises_worksheet_not_found(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.side_effect = gspread_exceptions.WorksheetNotFound(
+    )
+
+    with self.assertRaises(gspread_exceptions.WorksheetNotFound):
+      sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+          _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+      sheet_loader.get_text_layers()
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_text_layer_incomplete_text_layer_in_sheet_raises_value_error(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
+        _SHEET_HEADER_TEXT_LAYER,
+        [
+            'buy_me_text',  # layer_id
+            '48',  # font_size
+            '255',  # color_r
+            '255',  # color_g
+            '255',  # color_b
+            '232',  # position_x
+                    # position_y MISSING!!!
+            'レディースファッションおすすめ'  # text_content
+        ]
+    ]
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+
+    with self.assertRaises(ValueError):
+      sheet_loader.get_text_layers()
 
 
 if __name__ == '__main__':
