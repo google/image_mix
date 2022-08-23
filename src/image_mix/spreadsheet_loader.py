@@ -22,24 +22,35 @@ sheet_loader = SpreadSheetLoader('https://docs.google.com/spreadsheets/d/1y',
 layouts = sheet_loader.get_layouts()
 """
 
+import os
 from typing import List
 
 from google import auth as default_auth
 from google.colab import auth as colab_auth
 import gspread
 
+from image_mix import image_layer as image_layer_lib
 from image_mix import text_layer as text_layer_lib
 
+
 _TEXT_LAYER_TAB = 'TEXT_LAYER'
+_IMAGE_LAYER_TAB = 'IMAGE_LAYER'
 
 _TEXT_LAYER_ID_COLUMN = 0
-_FONT_SIZE_COLUMN = 1
-_COLOR_R_COLUMN = 2
-_COLOR_G_COLUMN = 3
-_COLOR_B_COLUMN = 4
-_POSITION_X_COLUMN = 5
-_POSITION_Y_COLUMN = 6
-_TEXT_CONTENT_COLUMN = 7
+_TEXT_LAYER_FONT_SIZE_COLUMN = 1
+_TEXT_LAYER_COLOR_R_COLUMN = 2
+_TEXT_LAYER_COLOR_G_COLUMN = 3
+_TEXT_LAYER_COLOR_B_COLUMN = 4
+_TEXT_LAYER_POSITION_X_COLUMN = 5
+_TEXT_LAYER_POSITION_Y_COLUMN = 6
+_TEXT_LAYER_TEXT_CONTENT_COLUMN = 7
+
+_IMAGE_LAYER_ID_COLUMN = 0
+_IMAGE_LAYER_WIDTH_COLUMN = 1
+_IMAGE_LAYER_HEIGHT_COLUMN = 2
+_IMAGE_LAYER_POSITION_X_COLUMN = 3
+_IMAGE_LAYER_POSITION_Y_COLUMN = 4
+_IMAGE_LAYER_FILE_NAME_COLUMN = 5
 
 _LAYER_ID_COLUMN_HEADER = 'layer_id'
 
@@ -112,9 +123,7 @@ class SpreadSheetLoader:
       ValueError: if a row contains incorrect information to create a TextLayer
         object.
     """
-    text_layer_worksheet = self._spreadsheet.worksheet(_TEXT_LAYER_TAB)
-    all_rows_text_layer = text_layer_worksheet.get_all_values()
-
+    all_rows_text_layer = self._get_all_values_for_tab(_TEXT_LAYER_TAB)
     number_of_rows = len(all_rows_text_layer)
     if number_of_rows <= 1:
       return []
@@ -127,19 +136,78 @@ class SpreadSheetLoader:
       try:
         text_layer = text_layer_lib.TextLayer(
             layer_id=row[_TEXT_LAYER_ID_COLUMN],
-            position_x=int(row[_POSITION_X_COLUMN]),
-            position_y=int(row[_POSITION_Y_COLUMN]),
-            font_size=int(row[_FONT_SIZE_COLUMN]),
+            position_x=int(row[_TEXT_LAYER_POSITION_X_COLUMN]),
+            position_y=int(row[_TEXT_LAYER_POSITION_Y_COLUMN]),
+            font_size=int(row[_TEXT_LAYER_FONT_SIZE_COLUMN]),
             font_file_path=self._default_font_file_path,
-            color_r=int(row[_COLOR_R_COLUMN]),
-            color_g=int(row[_COLOR_G_COLUMN]),
-            color_b=int(row[_COLOR_B_COLUMN]),
-            text_content=row[_TEXT_CONTENT_COLUMN])
+            color_r=int(row[_TEXT_LAYER_COLOR_R_COLUMN]),
+            color_g=int(row[_TEXT_LAYER_COLOR_G_COLUMN]),
+            color_b=int(row[_TEXT_LAYER_COLOR_B_COLUMN]),
+            text_content=row[_TEXT_LAYER_TEXT_CONTENT_COLUMN])
         text_layers.append(text_layer)
 
-      except ValueError as error:
+      except (ValueError, IndexError) as error:
         raise ValueError(
             (f'Fail to create text layer object from row {index+1} in the '
              'TEXT_LAYER tab please double check this row\'s value')) from error
 
     return text_layers
+
+  def get_image_layers(self) -> List[image_layer_lib.ImageLayer]:
+    """Returns a list of ImageLayer from the spreadsheet.
+
+    Returns:
+      A list of ImageLayer objects made from the information found in the
+      spreadsheet IMAGE_LAYER tab.
+
+    Raises:
+      ValueError: if a row contains incorrect information to create a ImageLayer
+        object.
+    """
+    all_rows_image_layer = self._get_all_values_for_tab(_IMAGE_LAYER_TAB)
+
+    if self._is_sheet_tab_empty(all_rows_image_layer):
+      return []
+
+    image_layers = []
+    for index, row in enumerate(all_rows_image_layer):
+      if row[_IMAGE_LAYER_ID_COLUMN] == _LAYER_ID_COLUMN_HEADER:
+        continue
+
+      try:
+        image_layer = image_layer_lib.ImageLayer(
+            layer_id=row[_IMAGE_LAYER_ID_COLUMN],
+            position_x=int(row[_IMAGE_LAYER_POSITION_X_COLUMN]),
+            position_y=int(row[_IMAGE_LAYER_POSITION_Y_COLUMN]),
+            width=int(row[_IMAGE_LAYER_WIDTH_COLUMN]),
+            height=int(row[_IMAGE_LAYER_HEIGHT_COLUMN]),
+            file_path=os.path.join(self._image_directory_path,
+                                   row[_IMAGE_LAYER_FILE_NAME_COLUMN]))
+        image_layers.append(image_layer)
+
+      except (ValueError, IndexError) as error:
+        raise ValueError((
+            f'Fail to create image layer object from row {index+1} in the '
+            'IMAGE_LAYER tab please double check this row\'s value')) from error
+
+    return image_layers
+
+  def _get_all_values_for_tab(self, tab_name: str) -> List[List[str]]:
+    """Returns all values from the specified tab.
+
+    Args:
+      tab_name: Name of the tab we want to get the values from.
+
+    Raises:
+      gspread.WorksheetNotFound: if tab_name is not present in the spreadsheet.
+
+    """
+    return self._spreadsheet.worksheet(tab_name).get_all_values()
+
+  def _is_sheet_tab_empty(self, all_rows: List[List[str]]) -> bool:
+    """Returns True if a sheet's tab value is empty.
+
+    Args:
+      all_rows: The values contained in a sheet's tab.
+    """
+    return len(all_rows) <= 1

@@ -16,25 +16,28 @@
 
 from unittest import mock
 
-
 from google import auth as default_auth
 from google.colab import auth as colab_auth
 import gspread
 from gspread import exceptions as gspread_exceptions
 
+from image_mix import image_layer
 from image_mix import spreadsheet_loader
 from image_mix import text_layer
-
 from absl.testing import absltest
 
 
 _SHEET_URL = 'https://docs.google.com/spreadsheets/d/1qgWhMMOfedeK2DMeLxqlr7xD1Jbclyo5_mnKOBqerPs/edit#gid=0'
-_IMAGE_DIRECTORY_PATH = 'IMAGEMIX/images'
+_IMAGE_DIRECTORY_PATH = 'My drive/IMAGEMIX/images'
 
 _DEFAULT_FONT_FILE_PATH = 'fonts/dummy-font.ttf'
 _SHEET_HEADER_TEXT_LAYER = [
     'layer_id', 'font_size', 'color_r', 'color_g', 'color_b', 'position_x',
     'position_y', 'text_content'
+]
+
+_SHEET_HEADER_IMAGE_LAYER = [
+    'layer_id', 'width', 'height', 'position_x', 'position_y', 'filename'
 ]
 
 _ROW_ONE_TEXT_LAYER = [
@@ -85,6 +88,44 @@ _TEXT_LAYER_2 = text_layer.TextLayer(
     color_b=255,
     text_content='レディースファッションおすすめ')
 
+_ROW_ONE_IMAGE_LAYER = [
+    'background_square',  # layer_id
+    '1200',  # width
+    '1100',  # height
+    '0',  # position_x
+    '1',  # position_y
+    'background.png'  # filename
+]
+
+_ROW_TWO_IMAGE_LAYER = [
+    'blue_bird',  # layer_id
+    '1500',  # width
+    '1600',  # height
+    '500',  # position_x
+    '400',  # position_y
+    'blue_bird.png'  # filename
+]
+
+_IMAGE_LAYER_WORKSHEET_VALUES = [_SHEET_HEADER_IMAGE_LAYER,
+                                 _ROW_ONE_IMAGE_LAYER,
+                                 _ROW_TWO_IMAGE_LAYER]
+
+_IMAGE_LAYER_1 = image_layer.ImageLayer(
+    layer_id='background_square',
+    position_x=0,
+    position_y=1,
+    width=1200,
+    height=1100,
+    file_path=f'{_IMAGE_DIRECTORY_PATH}/background.png')
+
+_IMAGE_LAYER_2 = image_layer.ImageLayer(
+    layer_id='blue_bird',
+    position_x=500,
+    position_y=400,
+    width=1500,
+    height=1600,
+    file_path=f'{_IMAGE_DIRECTORY_PATH}/blue_bird.png')
+
 
 class SpreadsheetLoaderTest(absltest.TestCase):
 
@@ -128,8 +169,8 @@ class SpreadsheetLoaderTest(absltest.TestCase):
   @mock.patch.object(default_auth, 'default', autospec=True)
   @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
   @mock.patch.object(gspread, 'authorize', autospec=True)
-  def test_get_text_layers(self, mock_gspead, mock_colab_auth,
-                           mock_google_auth):
+  def test_get_text_layers_two_rows_become_two_text_layer_objects(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
     mock_colab_auth.return_value = None
     mock_google_auth.return_value = (mock.Mock(), None)
     mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = _TEXT_LAYER_WORKSHEET_VALUES
@@ -205,6 +246,84 @@ class SpreadsheetLoaderTest(absltest.TestCase):
 
     with self.assertRaises(ValueError):
       sheet_loader.get_text_layers()
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_image_layers_no_image_layer_tab_raises_worksheet_not_found(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.side_effect = gspread_exceptions.WorksheetNotFound(
+    )
+
+    with self.assertRaises(gspread_exceptions.WorksheetNotFound):
+      sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+          _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+      sheet_loader.get_image_layers()
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_image_layers_tab_has_header_only_but_no_values_return_empty_arr(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
+        _SHEET_HEADER_IMAGE_LAYER
+    ]
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+    actual_text_layers = sheet_loader.get_text_layers()
+
+    self.assertEqual([], actual_text_layers)
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_image_layer_incomplete_image_layer_in_sheet_raises_value_error(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
+        _SHEET_HEADER_IMAGE_LAYER,
+        [
+            'background_square',  # layer_id
+            '1200',  # width
+            '1100',  # height
+            '0',  # position_x
+            '1',  # position_y
+                  # filename MISSING!
+        ]
+    ]
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+
+    with self.assertRaises(ValueError):
+      sheet_loader.get_image_layers()
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_layer_images_two_valid_rows_in_sheet_result_two_valid_objects(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = _IMAGE_LAYER_WORKSHEET_VALUES
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+
+    actual_image_layers = sheet_loader.get_image_layers()
+
+    expected_image_layers = [_IMAGE_LAYER_2, _IMAGE_LAYER_1]
+    self.assertCountEqual(expected_image_layers, actual_image_layers)
 
 
 if __name__ == '__main__':
