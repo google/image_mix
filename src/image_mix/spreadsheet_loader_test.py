@@ -21,6 +21,7 @@ from google.colab import auth as colab_auth
 import gspread
 from gspread import exceptions as gspread_exceptions
 
+from image_mix import canvas as canvas_lib
 from image_mix import image_layer
 from image_mix import spreadsheet_loader
 from image_mix import text_layer
@@ -31,14 +32,16 @@ _SHEET_URL = 'https://docs.google.com/spreadsheets/d/1qgWhMMOfedeK2DMeLxqlr7xD1J
 _IMAGE_DIRECTORY_PATH = 'My drive/IMAGEMIX/images'
 
 _DEFAULT_FONT_FILE_PATH = 'fonts/dummy-font.ttf'
-_SHEET_HEADER_TEXT_LAYER = [
+_TAB_HEADER_TEXT_LAYER = [
     'layer_id', 'font_size', 'color_r', 'color_g', 'color_b', 'position_x',
     'position_y', 'text_content'
 ]
 
-_SHEET_HEADER_IMAGE_LAYER = [
+_TAB_HEADER_IMAGE_LAYER = [
     'layer_id', 'width', 'height', 'position_x', 'position_y', 'filename'
 ]
+
+_TAB_HEADER_CANVAS = ['canvas_id', 'width', 'height']
 
 _ROW_ONE_TEXT_LAYER = [
     'text_layer1',  # layer_id
@@ -62,7 +65,7 @@ _ROW_TWO_TEXT_LAYER = [
     'レディースファッションおすすめ'  # text_content
 ]
 
-_TEXT_LAYER_WORKSHEET_VALUES = [_SHEET_HEADER_TEXT_LAYER,
+_TEXT_LAYER_WORKSHEET_VALUES = [_TAB_HEADER_TEXT_LAYER,
                                 _ROW_ONE_TEXT_LAYER,
                                 _ROW_TWO_TEXT_LAYER]
 
@@ -106,7 +109,7 @@ _ROW_TWO_IMAGE_LAYER = [
     'blue_bird.png'  # filename
 ]
 
-_IMAGE_LAYER_WORKSHEET_VALUES = [_SHEET_HEADER_IMAGE_LAYER,
+_IMAGE_LAYER_WORKSHEET_VALUES = [_TAB_HEADER_IMAGE_LAYER,
                                  _ROW_ONE_IMAGE_LAYER,
                                  _ROW_TWO_IMAGE_LAYER]
 
@@ -125,6 +128,11 @@ _IMAGE_LAYER_2 = image_layer.ImageLayer(
     width=1500,
     height=1600,
     file_path=f'{_IMAGE_DIRECTORY_PATH}/blue_bird.png')
+
+_CANVAS_WIDE = canvas_lib.Canvas(
+    canvas_id='canvas_wide', width=1200, height=1100)
+_CANVAS_NARROW = canvas_lib.Canvas(
+    canvas_id='canvas_narrow', width=800, height=600)
 
 
 class SpreadsheetLoaderTest(absltest.TestCase):
@@ -192,7 +200,7 @@ class SpreadsheetLoaderTest(absltest.TestCase):
     mock_colab_auth.return_value = None
     mock_google_auth.return_value = (mock.Mock(), None)
     mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
-        _SHEET_HEADER_TEXT_LAYER
+        _TAB_HEADER_TEXT_LAYER
     ]
 
     sheet_loader = spreadsheet_loader.SpreadSheetLoader(
@@ -228,7 +236,7 @@ class SpreadsheetLoaderTest(absltest.TestCase):
     mock_colab_auth.return_value = None
     mock_google_auth.return_value = (mock.Mock(), None)
     mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
-        _SHEET_HEADER_TEXT_LAYER,
+        _TAB_HEADER_TEXT_LAYER,
         [
             'buy_me_text',  # layer_id
             '48',  # font_size
@@ -272,7 +280,7 @@ class SpreadsheetLoaderTest(absltest.TestCase):
     mock_colab_auth.return_value = None
     mock_google_auth.return_value = (mock.Mock(), None)
     mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
-        _SHEET_HEADER_IMAGE_LAYER
+        _TAB_HEADER_IMAGE_LAYER
     ]
 
     sheet_loader = spreadsheet_loader.SpreadSheetLoader(
@@ -290,7 +298,7 @@ class SpreadsheetLoaderTest(absltest.TestCase):
     mock_colab_auth.return_value = None
     mock_google_auth.return_value = (mock.Mock(), None)
     mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
-        _SHEET_HEADER_IMAGE_LAYER,
+        _TAB_HEADER_IMAGE_LAYER,
         [
             'background_square',  # layer_id
             '1200',  # width
@@ -324,6 +332,92 @@ class SpreadsheetLoaderTest(absltest.TestCase):
 
     expected_image_layers = [_IMAGE_LAYER_2, _IMAGE_LAYER_1]
     self.assertCountEqual(expected_image_layers, actual_image_layers)
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_canvases_no_canvas_tab_raises_worksheet_not_found(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.side_effect = gspread_exceptions.WorksheetNotFound(
+    )
+
+    with self.assertRaises(gspread_exceptions.WorksheetNotFound):
+      sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+          _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+      sheet_loader.get_canvases()
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_canvases_no_rows_in_tab_return_empty_array(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
+        _TAB_HEADER_CANVAS
+    ]
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+
+    actual_image_layers = sheet_loader.get_canvases()
+
+    self.assertEqual([], actual_image_layers)
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_canvases_information_missing_from_row_raises_value_error(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
+        _TAB_HEADER_CANVAS,
+        [
+            'canvas_wide',  # canvas_id
+            '1200',  # width
+            '',  # height Missing!
+        ]
+    ]
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+
+    with self.assertRaises(ValueError):
+      sheet_loader.get_canvases()
+
+  @mock.patch.object(default_auth, 'default', autospec=True)
+  @mock.patch.object(colab_auth, 'authenticate_user', autospec=True)
+  @mock.patch.object(gspread, 'authorize', autospec=True)
+  def test_get_canvases_tab_has_two_valid_rows_returns_two_valid_canvases(
+      self, mock_gspead, mock_colab_auth, mock_google_auth):
+
+    mock_colab_auth.return_value = None
+    mock_google_auth.return_value = (mock.Mock(), None)
+    mock_gspead.return_value.open_by_url.return_value.worksheet.return_value.get_all_values.return_value = [
+        _TAB_HEADER_CANVAS,
+        [
+            'canvas_wide',  # canvas_id
+            '1200',  # width
+            '1100',  # height
+        ],
+        [
+            'canvas_narrow',  # canvas_id
+            '800',  # width
+            '600',  # height
+        ]
+    ]
+
+    sheet_loader = spreadsheet_loader.SpreadSheetLoader(
+        _SHEET_URL, _IMAGE_DIRECTORY_PATH, _DEFAULT_FONT_FILE_PATH)
+    actual_canvases = sheet_loader.get_canvases()
+
+    self.assertCountEqual(actual_canvases, [_CANVAS_WIDE, _CANVAS_NARROW])
 
 
 if __name__ == '__main__':

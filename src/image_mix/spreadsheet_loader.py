@@ -29,12 +29,14 @@ from google import auth as default_auth
 from google.colab import auth as colab_auth
 import gspread
 
+from image_mix import canvas as canvas_lib
 from image_mix import image_layer as image_layer_lib
 from image_mix import text_layer as text_layer_lib
 
 
 _TEXT_LAYER_TAB = 'TEXT_LAYER'
 _IMAGE_LAYER_TAB = 'IMAGE_LAYER'
+_CANVAS_TAB = 'CANVAS'
 
 _TEXT_LAYER_ID_COLUMN = 0
 _TEXT_LAYER_FONT_SIZE_COLUMN = 1
@@ -53,6 +55,11 @@ _IMAGE_LAYER_POSITION_Y_COLUMN = 4
 _IMAGE_LAYER_FILE_NAME_COLUMN = 5
 
 _LAYER_ID_COLUMN_HEADER = 'layer_id'
+
+_CANVAS_ID_COLUMN_HEADER = 'canvas_id'
+_CANVAS_ID_COLUMN = 0
+_CANVAS_WIDTH_COLUMN = 1
+_CANVAS_HEIGHT_COLUMN = 2
 
 
 class SpreadSheetLoader:
@@ -124,9 +131,6 @@ class SpreadSheetLoader:
         object.
     """
     all_rows_text_layer = self._get_all_values_for_tab(_TEXT_LAYER_TAB)
-    number_of_rows = len(all_rows_text_layer)
-    if number_of_rows <= 1:
-      return []
 
     text_layers = []
     for index, row in enumerate(all_rows_text_layer):
@@ -148,7 +152,7 @@ class SpreadSheetLoader:
 
       except (ValueError, IndexError) as error:
         raise ValueError(
-            (f'Fail to create text layer object from row {index+1} in the '
+            (f'Failed to create text layer object from row {index+1} in the '
              'TEXT_LAYER tab please double check this row\'s value')) from error
 
     return text_layers
@@ -163,11 +167,10 @@ class SpreadSheetLoader:
     Raises:
       ValueError: if a row contains incorrect information to create a ImageLayer
         object.
+      gspread.WorksheetNotFound: if IMAGE_LAYER tab is not present in the
+        spreadsheet.
     """
     all_rows_image_layer = self._get_all_values_for_tab(_IMAGE_LAYER_TAB)
-
-    if self._is_sheet_tab_empty(all_rows_image_layer):
-      return []
 
     image_layers = []
     for index, row in enumerate(all_rows_image_layer):
@@ -187,10 +190,42 @@ class SpreadSheetLoader:
 
       except (ValueError, IndexError) as error:
         raise ValueError((
-            f'Fail to create image layer object from row {index+1} in the '
+            f'Failed to create image layer object from row {index+1} in the '
             'IMAGE_LAYER tab please double check this row\'s value')) from error
 
     return image_layers
+
+  def get_canvases(self) -> List[canvas_lib.Canvas]:
+    """Returns a list of Canvas from the spreadsheet.
+
+    Returns:
+      A list of Canvas object made from the information found in the
+      CANVAS tab in the spreadsheet.
+
+    Raises:
+      gspread.WorksheetNotFound: if CANVAS tab is not present in the
+        spreadsheet.
+    """
+    all_rows_canvas = self._get_all_values_for_tab(_CANVAS_TAB)
+
+    canvases = []
+    for index, row in enumerate(all_rows_canvas):
+      if row[_CANVAS_ID_COLUMN] == _CANVAS_ID_COLUMN_HEADER:
+        continue
+
+      try:
+        canvas = canvas_lib.Canvas(
+            canvas_id=row[_CANVAS_ID_COLUMN],
+            width=int(row[_CANVAS_WIDTH_COLUMN]),
+            height=int(row[_CANVAS_HEIGHT_COLUMN]))
+        canvases.append(canvas)
+
+      except (ValueError, IndexError) as error:
+        raise ValueError((
+            f'Failed to create canvas object from row {index+1} in the '
+            'CANVAS tab please double check this row\'s value')) from error
+
+    return canvases
 
   def _get_all_values_for_tab(self, tab_name: str) -> List[List[str]]:
     """Returns all values from the specified tab.
@@ -200,14 +235,5 @@ class SpreadSheetLoader:
 
     Raises:
       gspread.WorksheetNotFound: if tab_name is not present in the spreadsheet.
-
     """
     return self._spreadsheet.worksheet(tab_name).get_all_values()
-
-  def _is_sheet_tab_empty(self, all_rows: List[List[str]]) -> bool:
-    """Returns True if a sheet's tab value is empty.
-
-    Args:
-      all_rows: The values contained in a sheet's tab.
-    """
-    return len(all_rows) <= 1
