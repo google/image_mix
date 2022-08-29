@@ -29,14 +29,17 @@ from google import auth as default_auth
 from google.colab import auth as colab_auth
 import gspread
 
+from image_mix import base_layer as base_layer_lib
 from image_mix import canvas as canvas_lib
 from image_mix import image_layer as image_layer_lib
+from image_mix import layout as layout_lib
 from image_mix import text_layer as text_layer_lib
 
 
 _TEXT_LAYER_TAB = 'TEXT_LAYER'
 _IMAGE_LAYER_TAB = 'IMAGE_LAYER'
 _CANVAS_TAB = 'CANVAS'
+_LAYOUT_TAB = 'LAYOUT'
 
 _TEXT_LAYER_ID_COLUMN = 0
 _TEXT_LAYER_FONT_SIZE_COLUMN = 1
@@ -60,6 +63,15 @@ _CANVAS_ID_COLUMN_HEADER = 'canvas_id'
 _CANVAS_ID_COLUMN = 0
 _CANVAS_WIDTH_COLUMN = 1
 _CANVAS_HEIGHT_COLUMN = 2
+
+_LAYOUT_OUTPUT_FILENAME_COLUMN = 0
+_LAYOUT_CANVAS_ID_COLUMN = 1
+_LAYOUT_HEADER_FIRST_COLUMN_ = 'output_filename'
+
+_NUMBER_OF_COLUMNS_IN_LAYOUT_TAB = 32
+_LAYER_COLUMN_START_INDEX_LAYOUT_TAB = 2
+# First two columns are output_filename and canvas_id, followed by 30 layers.
+_LAYER_COLUMN_END_INDEX_LAYOUT_TAB = 31
 
 
 class SpreadSheetLoader:
@@ -134,7 +146,7 @@ class SpreadSheetLoader:
 
     text_layers = []
     for index, row in enumerate(all_rows_text_layer):
-      if row[_TEXT_LAYER_ID_COLUMN] == _LAYER_ID_COLUMN_HEADER:
+      if row[0] == _LAYER_ID_COLUMN_HEADER:
         continue
 
       try:
@@ -174,7 +186,7 @@ class SpreadSheetLoader:
 
     image_layers = []
     for index, row in enumerate(all_rows_image_layer):
-      if row[_IMAGE_LAYER_ID_COLUMN] == _LAYER_ID_COLUMN_HEADER:
+      if row[0] == _LAYER_ID_COLUMN_HEADER:
         continue
 
       try:
@@ -210,7 +222,7 @@ class SpreadSheetLoader:
 
     canvases = []
     for index, row in enumerate(all_rows_canvas):
-      if row[_CANVAS_ID_COLUMN] == _CANVAS_ID_COLUMN_HEADER:
+      if row[0] == _CANVAS_ID_COLUMN_HEADER:
         continue
 
       try:
@@ -227,6 +239,53 @@ class SpreadSheetLoader:
 
     return canvases
 
+  def get_layouts(self) -> List[layout_lib.Layout]:
+    """Returns a list of Layout objects made from the spreadsheet LAYOUT tab.
+
+    Returns:
+      A list of Layout object built from the information found in the LAYOUT
+      tab in the spreadsheet.
+
+    Raises:
+      ValueError: The spreadsheet is incorrectly formatted or is lacking
+        information.
+    """
+    all_rows_layout = self._get_all_values_for_tab(_LAYOUT_TAB)
+
+    if len(all_rows_layout) < 2:
+      raise ValueError('Layout tab must have a header and at least one '
+                       'record. The current LAYOUT Tab is empty.')
+
+    text_layers = self.get_text_layers()
+    image_layers = self.get_image_layers()
+    if not image_layers:
+      raise ValueError('The spreadsheet needs to have at least one image '
+                       'layer record.')
+    canvases = self.get_canvases()
+    if not canvases:
+      raise ValueError('The spreadsheet needs to have at least one canvas.')
+
+    layouts = []
+    for index, row in enumerate(all_rows_layout):
+      self._validate_layout_row(row)
+      if row[0] == _LAYOUT_HEADER_FIRST_COLUMN_:
+        continue
+      try:
+        output_filename = row[_LAYOUT_OUTPUT_FILENAME_COLUMN]
+        canvas = self._get_canvas_with_id_from_canvases(
+            row[_LAYOUT_CANVAS_ID_COLUMN], canvases)
+        layers = self._get_layers_from_layout_row(row, text_layers,
+                                                  image_layers)
+        layout = layout_lib.Layout(canvas, output_filename, layers)
+        layouts.append(layout)
+      except (ValueError, IndexError) as error:
+        raise ValueError(
+            f'Failed to create a layout object from row number {index+1}. '
+            'Please check the spreadsheet\'s LAYOUT tab on that particular '
+            'row.') from error
+
+    return layouts
+
   def _get_all_values_for_tab(self, tab_name: str) -> List[List[str]]:
     """Returns all values from the specified tab.
 
@@ -237,3 +296,118 @@ class SpreadSheetLoader:
       gspread.WorksheetNotFound: if tab_name is not present in the spreadsheet.
     """
     return self._spreadsheet.worksheet(tab_name).get_all_values()
+
+  def _get_canvas_with_id_from_canvases(
+      self, canvas_id: str,
+      canvases: List[canvas_lib.Canvas]) -> canvas_lib.Canvas:
+    """Returns the canvas from the list matching the canvas_id.
+
+    Args:
+      canvas_id: The canvas_id we are trying to find in canvases.
+      canvases: A list of canvas.
+
+    Returns:
+      One canvas in canvases matching the given canvas_id.
+
+    Raises:
+      ValueError: If we cannot find a canvas matching the canvas_id or if we
+        can find more than one.
+    """
+    canvas = [canvas for canvas in canvases if canvas.canvas_id == canvas_id]
+    if not canvas:
+      raise ValueError(
+          f'Failed to find {canvas_id} in the list of canvas. Make sure '
+          f'{canvas_id} that you specified in LAYOUT is present in your '
+          'CANVAS tab.')
+
+    if len(canvas) > 1:
+      raise ValueError(f'We found more than one canvas for {canvas_id}. '
+                       'Double check your CANVAS tab.')
+
+    return canvas[0]
+
+  def _get_layers_from_layout_row(
+      self, row: List[str], text_layers: List[text_layer_lib.TextLayer],
+      image_layers: List[image_layer_lib.ImageLayer]
+  ) -> List[base_layer_lib.BaseLayer]:
+    """Returns a list of TextLayer, ImageLayer object found in a layout row.
+
+    Args:
+      row: A row from spreadsheet's LAYOUT tab.
+      text_layers: A list of TextLayer objects.
+      image_layers: A list of ImageLayer objects.
+
+    Returns:
+      A List of TextLayer, ImageLayer objects found in either text_layers or
+      image_layers list where the text layer id or the image layer id is
+      specified in row's column index 2 to 21 included.
+
+    Raises:
+      ValueError:
+        - When the for an specific id found in row we cannot find a matching
+          object in either image_layers or text_layers.
+        - When for a id in row we found an matching object in text_layers and
+          image_layers.
+        - If the spreadsheet's layout tab has the wrong number of columns.
+
+    """
+    layers = []
+    for column_index in range(_LAYER_COLUMN_START_INDEX_LAYOUT_TAB,
+                              _LAYER_COLUMN_END_INDEX_LAYOUT_TAB + 1):
+      layer_id = row[column_index]
+      # We break when the first empty layer is found.
+      if not layer_id:
+        break
+      image_layer_match = [x for x in image_layers if x.layer_id == layer_id]
+      text_layer_match = [x for x in text_layers if x.layer_id == layer_id]
+
+      if image_layer_match and text_layer_match:
+        raise ValueError(f'The layer_id {layer_id} could be found in both '
+                         'the image layer and the text layer. This is not '
+                         'allowed. Please check both tabs.')
+
+      if not image_layer_match and not text_layer_match:
+        raise ValueError(f'The layer id {layer_id} could not be found in '
+                         'either the text layer or the image layer tabs.')
+
+      if len(image_layer_match) > 1:
+        raise ValueError(f'The layer_id {layer_id} matched more than one row '
+                         'in the image layer tab. This is not allowed.')
+
+      if len(text_layer_match) > 1:
+        raise ValueError(f'The layer_id {layer_id} matched more than one row '
+                         'in the text layer tab. This is not allowed.')
+
+      if image_layer_match:
+        layers.append(image_layer_match[0])
+      else:
+        layers.append(text_layer_match[0])
+
+    return layers
+
+  def _validate_layout_row(self, row: List[str]) -> None:
+    """Checks if a layout row is valid or not.
+
+    A layout row should have _NUMBER_OF_COLUMNS_IN_LAYOUT_TAB columns. The first
+    three columns must have a value (output_file, canvas_id, layer_1).
+
+    Args:
+      row: A layout row.
+
+    Raises:
+      ValueError: If the row is not valid
+    """
+    if not row:
+      raise ValueError('A valid layout row cannot be empty.')
+
+    if len(row) != _NUMBER_OF_COLUMNS_IN_LAYOUT_TAB:
+      raise ValueError(
+          f'The row {row} doesn\'t have the right number of column, '
+          f'it has {len(row)} instead of '
+          f'{_NUMBER_OF_COLUMNS_IN_LAYOUT_TAB} columns')
+
+    if not row[0] or not row[1] or not row[2]:
+      raise ValueError(
+          'A layout row should have at least the three first '
+          'columns with values. We need to have at least one '
+          f'layer. Please check row {row}')
