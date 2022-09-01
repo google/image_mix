@@ -95,8 +95,8 @@ class SpreadSheetLoader:
       default_font_file_path: Path to the font to use.
 
     Raises:
-      ValueError: If the spreadsheet_url, image_firectory_path,
-        default_font_file_path is empty.
+      ValueError: If the spreadsheet_url is empty or invalid or
+        image_firectory_path, default_font_file_path is empty.
       errors.AuthorizationError: If authorization fails.
       google.auth.exceptions.DefaultCredentialsError: If no credentials were
          found, or if the credentials found were invalid.
@@ -115,7 +115,11 @@ class SpreadSheetLoader:
     self._default_font_file_path = default_font_file_path
 
     self._gspread = self._authorize_spreasheet_access()
-    self._spreadsheet = self._gspread.open_by_url(self._spreadsheet_url)
+    try:
+      self._spreadsheet = self._gspread.open_by_url(self._spreadsheet_url)
+    except gspread.SpreadsheetNotFound as error:
+      raise ValueError(
+          f'The spreadsheet url  {spreadsheet_url} is invalid.') from error
 
   def _authorize_spreasheet_access(self) -> gspread.Client:
     """Authenticates the user and get authorization to access Drive.
