@@ -14,6 +14,7 @@
 
 """Tests for image_mix_main."""
 
+import os
 from unittest import mock
 
 from image_mix import canvas as canvas_lib
@@ -22,8 +23,8 @@ from image_mix import image_mix_main
 from image_mix import layer_mixer
 from image_mix import layout
 from image_mix import spreadsheet_loader
-from absl.testing import absltest
 from image_mix import text_layer
+from absl.testing import absltest
 
 
 _CANVAS_OBJECT_CANVAS_SQUARE = canvas_lib.Canvas(
@@ -124,10 +125,11 @@ class ImageMixerMainTest(absltest.TestCase):
           image_directory_path='~/imagemix-images')
       image_mixer.generate_creatives()
 
+  @mock.patch.object(os, 'makedirs', autospec=True)
   @mock.patch.object(layer_mixer, 'LayerMixer', autospec=True)
   @mock.patch.object(spreadsheet_loader, 'SpreadSheetLoader', autospec=True)
   def test_generate_creatives_spreadsheet_no_layout_no_image_get_written(
-      self, mock_spreadsheet_loader, layer_mixer_mock):
+      self, mock_spreadsheet_loader, layer_mixer_mock, _):
     mock_spreadsheet_loader.return_value.get_layouts.return_value = []
 
     image_mixer = image_mix_main.ImageMixMain(
@@ -139,11 +141,11 @@ class ImageMixerMainTest(absltest.TestCase):
 
     layer_mixer_mock.save_image.assert_not_called()
 
+  @mock.patch.object(os, 'makedirs', autospec=True)
   @mock.patch.object(layer_mixer, 'LayerMixer', autospec=True)
   @mock.patch.object(spreadsheet_loader, 'SpreadSheetLoader', autospec=True)
   def test_generate_creatives_an_image_cannot_be_found_raises_error(
-      self, mock_spreadsheet_loader, layer_mixer_mock):
-
+      self, mock_spreadsheet_loader, layer_mixer_mock, _):
     mock_spreadsheet_loader.return_value.get_layouts.return_value = [
         _ONE_LAYOUT_TWO_LAYERS
     ]
@@ -202,11 +204,11 @@ class ImageMixerMainTest(absltest.TestCase):
           image_directory_path='~/imagemix-images')
       image_mixer.generate_creatives()
 
+  @mock.patch.object(os, 'makedirs', autospec=True)
   @mock.patch.object(layer_mixer, 'LayerMixer', autospec=True)
   @mock.patch.object(spreadsheet_loader, 'SpreadSheetLoader', autospec=True)
   def test_generate_creatives_two_layouts_generates_two_creatives(
-      self, mock_spreadsheet_loader, layer_mixer_mock):
-
+      self, mock_spreadsheet_loader, layer_mixer_mock, _):
     mock_spreadsheet_loader.return_value.get_layouts.return_value = [
         _ONE_LAYOUT_TWO_LAYERS, _ANOTHER_LAYOUT_TWO_LAYERS
     ]

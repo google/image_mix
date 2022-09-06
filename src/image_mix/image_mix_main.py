@@ -65,6 +65,8 @@ class ImageMixMain:
   def generate_creatives(self):
     """Generates creatives by mixing layers and saves them to the output dir.
 
+    Creates the output directory if it doesn't exist.
+
     Raises:
       ValueError: When the spreadsheet format is invalid.
       FileNotFoundError: When an image layer image cannot be found at the
@@ -74,6 +76,7 @@ class ImageMixMain:
                encounter an issue.
     """
     layouts = self._spreadsheet_loader.get_layouts()
+    os.makedirs(self._output_path, exist_ok=True)
 
     for layout in layouts:
       layer_mixer = layer_mixer_lib.LayerMixer(
