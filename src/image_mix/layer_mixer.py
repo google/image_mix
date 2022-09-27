@@ -23,7 +23,8 @@ from image_mix import base_layer
 from image_mix import image_layer
 from image_mix import text_layer
 
-_DEFAULT_BACKGROUND_RGB_COLOR_WHITE = (255, 255, 255)
+_IMAGE_MODE = 'RGBA'
+_DEFAULT_BACKGROUND_RGBA_COLOR_WHITE = (255, 255, 255, 0)
 
 
 class LayerMixer:
@@ -35,7 +36,8 @@ class LayerMixer:
     Args:
       size: Size of image to generate. A tuple with format (width, height).
     """
-    self._image = Image.new('RGB', size, _DEFAULT_BACKGROUND_RGB_COLOR_WHITE)
+    self._image = Image.new(_IMAGE_MODE, size,
+                            _DEFAULT_BACKGROUND_RGBA_COLOR_WHITE)
 
   def add_layers(self, layers: Sequence[base_layer.BaseLayer]) -> None:
     """Adds a layer on top of the image.
@@ -58,7 +60,10 @@ class LayerMixer:
     """
     image_binary = Image.open(layer.file_path)
     image_binary = image_binary.resize(layer.size())
-    self._image.paste(image_binary, layer.position())
+    layer_to_add = Image.new(_IMAGE_MODE, self._image.size,
+                             _DEFAULT_BACKGROUND_RGBA_COLOR_WHITE)
+    layer_to_add.paste(image_binary, layer.position())
+    self._image = Image.alpha_composite(self._image, layer_to_add)
 
   def _add_text_layer(self, layer: text_layer.TextLayer) -> None:
     """Adds a text layer on top of the image.

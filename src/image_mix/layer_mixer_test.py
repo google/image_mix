@@ -62,8 +62,7 @@ class LayerMixerTest(absltest.TestCase):
 
   def test_image_is_created_with_given_size(self):
     self._mock_image.new.assert_called_with(
-        'RGB', (_DUMMY_IMAGE_WIDTH, _DUMMY_IMAGE_HEIGHT),
-        layer_mixer._DEFAULT_BACKGROUND_RGB_COLOR_WHITE)
+        'RGBA', (_DUMMY_IMAGE_WIDTH, _DUMMY_IMAGE_HEIGHT), (255, 255, 255, 0))
 
   def test_image_layer_is_added(self):
     self._layer_mixer._image = mock.MagicMock()
@@ -72,7 +71,7 @@ class LayerMixerTest(absltest.TestCase):
     self._mock_image.open.assert_called_once_with(_DUMMY_IMAGE_LAYER.file_path)
     self._mock_image.open.return_value.resize.assert_called_once_with(
         _DUMMY_IMAGE_LAYER.size())
-    self._layer_mixer._image.paste.assert_called_once()
+    self._mock_image.alpha_composite.assert_called_once()
 
   def test_text_layer_is_added(self):
     self._layer_mixer.add_layers([_DUMMY_TEXT_LAYER])
