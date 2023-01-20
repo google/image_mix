@@ -1,5 +1,7 @@
 # ImageMix
 
+This is not an officially supported Google product
+
 ## What is ImageMix
 ImageMix helps you generate image creatives that can be used in your Google
 Display Network for example.
