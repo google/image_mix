@@ -9,6 +9,9 @@ Display Network for example.
 ## How to run ImageMix
 The code of ImageMix is to be run in a Google Colaboratory and the code has
 to be imported in your Colab.
+This command in a Colab code cell will import the image_mix module.
+!pip install git+https://github.com/google/image_mix
+
 ImageMix needs
 - A Google Sheet that is used as a template to define the size of your creative,
 the images that compose your creative as well as the text of your creative.
