@@ -7,10 +7,11 @@ ImageMix helps you generate image creatives that can be used in your Google
 Display Network for example.
 
 ## How to run ImageMix
-The code of ImageMix is to be run in a Google Colaboratory and the code has
-to be imported in your Colab.
-This command in a Colab code cell will import the image_mix module.
-!pip install git+https://github.com/google/image_mix
+
+The code of ImageMix is to be run in a
+[Google Colaboratory](https://colab.research.google.com/) and the code has to be
+imported in your Colab. This command in a Colab code cell will import the
+image_mix module. !pip install git+https://github.com/google/image_mix
 
 ImageMix needs
 - A Google Sheet that is used as a template to define the size of your creative,
@@ -20,8 +21,11 @@ to be mixed together to make your creative.
 - A path to a font file
 - An output Google Drive folder where your creatives will be saved.
 
-You can use the image_mix_notebook.ipynb Colaboratory file to see how to import
-and run the code.
+You can use the
+[image_mix_notebook.ipynb](https://github.com/google/image_mix/blob/main/image_mix_notebook.ipynb)
+Colaboratory file to see how to import and run the code.
+
+We provide a [Sheet template for you to copy and use.](https://docs.google.com/spreadsheets/d/1WsjZ01fHoqrcO8CkY2hGgSqs3iztFl8AS9ZhcZHYtfU/edit?usp=sharing)
 
 ## Details about the template Spreadsheet
 The template Spreadsheet is defined as follow.
