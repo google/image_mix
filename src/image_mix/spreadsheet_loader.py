@@ -27,7 +27,7 @@ from typing import List
 
 from google import auth as default_auth
 from google.colab import auth as colab_auth
-from gspread import gspread
+import gspread
 
 from image_mix import base_layer as base_layer_lib
 from image_mix import canvas as canvas_lib

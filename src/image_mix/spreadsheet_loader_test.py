@@ -18,8 +18,8 @@ from unittest import mock
 
 from google import auth as default_auth
 from google.colab import auth as colab_auth
-from gspread import gspread
-import gspread.gspread.exceptions as gspread_exceptions
+import gspread
+import gspread.exceptions as gspread_exceptions
 from image_mix import canvas as canvas_lib
 from image_mix import image_layer
 from image_mix import layout
