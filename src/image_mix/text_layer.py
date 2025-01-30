@@ -14,7 +14,6 @@
 
 """Module defining the TextLayer data class."""
 import dataclasses
-from typing import Tuple
 
 from image_mix import base_layer
 
@@ -50,7 +49,7 @@ class TextLayer(base_layer.BaseLayer):
     if not self.text_content:
       raise ValueError('text_content should not be empty.')
 
-  def rgb_color(self) -> Tuple[int, int, int]:
+  def rgb_color(self) -> tuple[int, int, int]:
     """Returns a tuple representing the RGB color of the text.
 
     The format is (Red, Green, Blue).

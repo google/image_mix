@@ -14,7 +14,6 @@
 
 """Module defining the ImageLayer data class."""
 import dataclasses
-from typing import Tuple
 
 from image_mix import base_layer
 
@@ -36,7 +35,7 @@ class ImageLayer(base_layer.BaseLayer):
       if element < 0:
         raise ValueError('%s must be a positive number' % element)
 
-  def size(self) -> Tuple[int, int]:
+  def size(self) -> tuple[int, int]:
     """Returns a tuple representing the size of the layer.
 
     The format is (Width, Height).

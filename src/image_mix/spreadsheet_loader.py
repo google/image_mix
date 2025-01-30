@@ -23,7 +23,6 @@ layouts = sheet_loader.get_layouts()
 """
 
 import os
-from typing import List
 
 from google import auth as default_auth
 from google.colab import auth as colab_auth
@@ -133,7 +132,7 @@ class SpreadSheetLoader:
     creds, _ = default_auth.default()
     return gspread.authorize(creds)
 
-  def get_text_layers(self) -> List[text_layer_lib.TextLayer]:
+  def get_text_layers(self) -> list[text_layer_lib.TextLayer]:
     """Returns a list of TextLayer from the spreadsheet.
 
     Returns:
@@ -173,7 +172,7 @@ class SpreadSheetLoader:
 
     return text_layers
 
-  def get_image_layers(self) -> List[image_layer_lib.ImageLayer]:
+  def get_image_layers(self) -> list[image_layer_lib.ImageLayer]:
     """Returns a list of ImageLayer from the spreadsheet.
 
     Returns:
@@ -211,7 +210,7 @@ class SpreadSheetLoader:
 
     return image_layers
 
-  def get_canvases(self) -> List[canvas_lib.Canvas]:
+  def get_canvases(self) -> list[canvas_lib.Canvas]:
     """Returns a list of Canvas from the spreadsheet.
 
     Returns:
@@ -243,7 +242,7 @@ class SpreadSheetLoader:
 
     return canvases
 
-  def get_layouts(self) -> List[layout_lib.Layout]:
+  def get_layouts(self) -> list[layout_lib.Layout]:
     """Returns a list of Layout objects made from the spreadsheet LAYOUT tab.
 
     Returns:
@@ -290,7 +289,7 @@ class SpreadSheetLoader:
 
     return layouts
 
-  def _get_all_values_for_tab(self, tab_name: str) -> List[List[str]]:
+  def _get_all_values_for_tab(self, tab_name: str) -> list[list[str]]:
     """Returns all values from the specified tab.
 
     Args:
@@ -302,8 +301,8 @@ class SpreadSheetLoader:
     return self._spreadsheet.worksheet(tab_name).get_all_values()
 
   def _get_canvas_with_id_from_canvases(
-      self, canvas_id: str,
-      canvases: List[canvas_lib.Canvas]) -> canvas_lib.Canvas:
+      self, canvas_id: str, canvases: list[canvas_lib.Canvas]
+  ) -> canvas_lib.Canvas:
     """Returns the canvas from the list matching the canvas_id.
 
     Args:
@@ -331,9 +330,11 @@ class SpreadSheetLoader:
     return canvas[0]
 
   def _get_layers_from_layout_row(
-      self, row: List[str], text_layers: List[text_layer_lib.TextLayer],
-      image_layers: List[image_layer_lib.ImageLayer]
-  ) -> List[base_layer_lib.BaseLayer]:
+      self,
+      row: list[str],
+      text_layers: list[text_layer_lib.TextLayer],
+      image_layers: list[image_layer_lib.ImageLayer],
+  ) -> list[base_layer_lib.BaseLayer]:
     """Returns a list of TextLayer, ImageLayer object found in a layout row.
 
     Args:
@@ -389,7 +390,7 @@ class SpreadSheetLoader:
 
     return layers
 
-  def _validate_layout_row(self, row: List[str]) -> None:
+  def _validate_layout_row(self, row: list[str]) -> None:
     """Checks if a layout row is valid or not.
 
     A layout row should have _NUMBER_OF_COLUMNS_IN_LAYOUT_TAB columns. The first

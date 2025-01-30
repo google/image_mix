@@ -14,7 +14,6 @@
 
 """Module defining the Layout data class."""
 import dataclasses
-from typing import List
 
 from image_mix import base_layer
 from image_mix import canvas
@@ -25,7 +24,7 @@ class Layout:
   """Class to store the details about the Layout of our creative."""
   canvas: canvas.Canvas
   output_filename: str
-  layers: List[base_layer.BaseLayer]
+  layers: list[base_layer.BaseLayer]
 
   def __post_init__(self):
     if not self.output_filename:

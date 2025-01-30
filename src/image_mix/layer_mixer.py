@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """A module for mixing image & text layers to generate an image creative."""
-from typing import Sequence, Tuple
+from collections.abc import Sequence
 
 from PIL import Image
 from PIL import ImageDraw
@@ -30,7 +30,7 @@ _DEFAULT_BACKGROUND_RGBA_COLOR_WHITE = (255, 255, 255, 0)
 class LayerMixer:
   """A class to mix image & text layers and save the generated image creative."""
 
-  def __init__(self, size: Tuple[int, int]):
+  def __init__(self, size: tuple[int, int]):
     """Constructor.
 
     Args:

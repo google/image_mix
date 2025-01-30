@@ -15,7 +15,6 @@
 """Module defining the BaseLayer data class."""
 import abc
 import dataclasses
-from typing import Tuple
 
 
 @dataclasses.dataclass(frozen=True)
@@ -33,7 +32,7 @@ class BaseLayer(abc.ABC):
       if element < 0:
         raise ValueError('%s must be a positive number' % element)
 
-  def position(self) -> Tuple[int, int]:
+  def position(self) -> tuple[int, int]:
     """Returns a tuple representing the position of the layer.
 
     The format is (X, Y).
