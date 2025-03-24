@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for canvas."""
-
 from image_mix import canvas as canvas_lib
 from absl.testing import absltest
 

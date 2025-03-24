@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for layout."""
-
 from image_mix import canvas as canvas_lib
 from image_mix import image_layer as image_layer_lib
 from image_mix import layout as layout_lib

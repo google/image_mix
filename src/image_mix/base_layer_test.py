@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for base_layer.py."""
 from image_mix import base_layer
 from absl.testing import absltest
 

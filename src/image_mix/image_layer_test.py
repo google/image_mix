@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for image_layer."""
-
 from image_mix import image_layer as image_layer_lib
 from absl.testing import absltest
 

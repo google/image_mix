@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for image_mix_main."""
-
 import os
 from unittest import mock
 

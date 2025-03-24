@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for layer_mixer.py."""
 from unittest import mock
 
 from image_mix import image_layer
